@@ -5,7 +5,7 @@ var Atlas = window.Atlas || {};
 
 Atlas.store = (function () {
   var KEY = "leonida-trophy-atlas-v1";
-  var state = { earned: {}, counts: {} };
+  var state = { earned: {}, counts: {}, steps: {} };
 
   function load() {
     try {
@@ -15,6 +15,7 @@ Atlas.store = (function () {
         if (parsed && typeof parsed === "object") {
           state.earned = parsed.earned || {};
           state.counts = parsed.counts || {};
+          state.steps = parsed.steps || {};
         }
       }
     } catch (err) {
@@ -65,6 +66,33 @@ Atlas.store = (function () {
     save();
   }
 
+  /* Step-plan progress: steps[id] is an array of true flags, one per plan
+     step the player has ticked off in the guide pane. */
+  function getSteps(id) {
+    return state.steps[id] || [];
+  }
+
+  function setStep(id, index, on) {
+    var arr = (state.steps[id] || []).slice();
+    arr[index] = on === true;
+    while (arr.length && arr[arr.length - 1] !== true) arr.pop();
+    if (arr.length) {
+      state.steps[id] = arr;
+    } else {
+      delete state.steps[id];
+    }
+    save();
+  }
+
+  function stepsDone(id, total) {
+    var arr = state.steps[id] || [];
+    var n = 0;
+    for (var i = 0; i < total; i++) {
+      if (arr[i] === true) n++;
+    }
+    return n;
+  }
+
   function earnedTotal() {
     return Object.keys(state.earned).length;
   }
@@ -85,12 +113,13 @@ Atlas.store = (function () {
     }
     state.earned = progress.earned || {};
     state.counts = progress.counts || {};
+    state.steps = progress.steps || {};
     save();
     return state;
   }
 
   function reset() {
-    state = { earned: {}, counts: {} };
+    state = { earned: {}, counts: {}, steps: {} };
     try {
       window.localStorage.removeItem(KEY);
     } catch (err) {
@@ -111,6 +140,13 @@ Atlas.store = (function () {
       15: 250, 16: 9, 17: 31, 25: 5, 28: 18, 31: 47,
       32: 22, 35: 100, 42: 30, 52: 140000, 53: 100000
     };
+    state.steps = {
+      3: [true, true],
+      17: [true, true],
+      28: [true, true, true],
+      31: [true],
+      40: [true, true]
+    };
     save();
   }
 
@@ -122,6 +158,9 @@ Atlas.store = (function () {
     setEarned: setEarned,
     getCount: getCount,
     setCount: setCount,
+    getSteps: getSteps,
+    setStep: setStep,
+    stepsDone: stepsDone,
     earnedTotal: earnedTotal,
     exportJson: exportJson,
     importJson: importJson,

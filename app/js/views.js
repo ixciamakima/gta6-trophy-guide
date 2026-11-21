@@ -38,6 +38,54 @@ Atlas.views = (function () {
     return '<h3>Sources</h3><ul class="sources-list">' + items + "</ul>";
   }
 
+  /* ---------- standing & step plan ---------- */
+
+  function planOf(t) {
+    return (Atlas.plans || {})[t.id] || null;
+  }
+
+  function standingHtml(t) {
+    var trophies = Atlas.data.trophies;
+    var inStage = trophies.filter(function (x) { return x.stage === t.stage; });
+    var pos = 0;
+    inStage.forEach(function (x, i) { if (x.id === t.id) pos = i + 1; });
+    var plan = planOf(t);
+    var cells = [
+      ["Grade", F.GRADE_LABEL[t.grade]],
+      ["Kind", F.KIND_LABEL[t.kind] || t.kind],
+      ["Roadmap", "Stage " + t.stage + " · " + pos + " of " + inStage.length + " in stage"],
+      ["On PSN", t.spoiler ? "Hidden until earned" : "Visible on the list"]
+    ];
+    if (plan) cells.push(["Effort", plan.effort + " — atlas estimate"]);
+    if (t.target) {
+      var c = store.getCount(t.id);
+      var pct = Math.min(100, Math.round(c / t.target * 100));
+      cells.push(["Progress", F.formatTarget(c) + " / " + F.formatTarget(t.target) +
+        " · " + pct + "% · " + F.formatTarget(t.target - c) + " to go"]);
+    }
+    return '<div class="standing-grid">' + cells.map(function (cell) {
+      return '<div class="standing-cell"><span class="standing-label">' + esc(cell[0]) + "</span>" +
+        '<span class="standing-value">' + esc(cell[1]) + "</span></div>";
+    }).join("") + "</div>";
+  }
+
+  function planHtml(t) {
+    var plan = planOf(t);
+    if (!plan) return "";
+    var done = store.stepsDone(t.id, plan.steps.length);
+    var items = plan.steps.map(function (step, i) {
+      var on = store.getSteps(t.id)[i] === true;
+      return '<li class="plan-step' + (on ? " is-done" : "") + '">' +
+        '<input type="checkbox" data-step="' + i + '"' + (on ? " checked" : "") +
+        ' aria-label="Plan step ' + (i + 1) + ' done">' +
+        '<span class="plan-step-text">' + esc(step) + "</span></li>";
+    }).join("");
+    return "<h3>Plan — step by step</h3>" +
+      '<p class="plan-progress">' + done + " of " + plan.steps.length +
+      " steps ticked — ticks save with your progress and export with it</p>" +
+      '<ol class="plan-list">' + items + "</ol>";
+  }
+
   /* ---------- header ---------- */
 
   function renderHeader() {
@@ -155,6 +203,8 @@ Atlas.views = (function () {
     if (t.missNote) {
       html += '<div class="miss-note"><strong>When it can be missed:</strong> ' + esc(t.missNote) + "</div>";
     }
+    html += standingHtml(t);
+    html += planHtml(t);
     if (t.target) {
       var c = store.getCount(t.id);
       html += '<div class="counter-box"><button type="button" class="counter-btn" id="countDown" aria-label="Decrease counter">&minus;</button>' +
@@ -181,6 +231,12 @@ Atlas.views = (function () {
         renderAll();
       });
     }
+    Array.prototype.forEach.call(pane.querySelectorAll("[data-step]"), function (box) {
+      box.addEventListener("change", function () {
+        store.setStep(t.id, parseInt(box.getAttribute("data-step"), 10), box.checked);
+        renderDetail();
+      });
+    });
     var up = el("countUp");
     var down = el("countDown");
     if (up && down) {
@@ -246,12 +302,20 @@ Atlas.views = (function () {
           (t.missable ? " — MISSABLE" : "") + "</button>";
       }).join("");
       var pct = s._total ? Math.round(s._done / s._total * 100) : 0;
+      var openCounters = inStage.filter(function (t) {
+        return t.target && !store.isEarned(t.id);
+      }).map(function (t) {
+        return esc(t.name) + " " + F.formatTarget(Math.max(0, t.target - store.getCount(t.id))) + " to go";
+      });
+      var leftLine = openCounters.length ?
+        '<p class="stage-left">Counters still open in this stage: ' + openCounters.slice(0, 3).join(" &middot; ") +
+        (openCounters.length > 3 ? " &middot; +" + (openCounters.length - 3) + " more" : "") + "</p>" : "";
       return '<article class="stage-card' + (s.n === firstOpenStage ? " is-current" : "") + '">' +
         '<div class="stage-head"><span class="stage-num">Stage ' + s.n + "</span><h3>" + esc(s.title) + "</h3>" +
         '<span class="stage-progress">' + s._done + " / " + s._total + " earned" +
         (s.n === firstOpenStage ? " &middot; you are here" : "") + "</span></div>" +
         '<p class="stage-blurb">' + esc(s.blurb) + "</p>" +
-        '<div class="stage-chips">' + chips + "</div>" +
+        '<div class="stage-chips">' + chips + "</div>" + leftLine +
         '<div class="stage-bar"><div class="stage-bar-fill" style="width:' + pct + '%"></div></div></article>';
     }).join("");
     Array.prototype.forEach.call(el("roadmapStages").querySelectorAll("[data-goto]"), function (chip) {
@@ -286,11 +350,65 @@ Atlas.views = (function () {
     el("missableCards").innerHTML = html;
   }
 
+  /* ---------- planner ---------- */
+
+  function renderPlanner() {
+    var trophies = Atlas.data.trophies;
+    var ordered = trophies.slice().sort(function (a, b) {
+      return a.stage - b.stage || a.id - b.id;
+    });
+    var open = ordered.filter(function (t) { return !store.isEarned(t.id); });
+    var countedOpen = open.filter(function (t) { return t.target; }).length;
+    var earned = store.earnedTotal();
+    var html = '<p class="planner-summary">You have <strong>' + earned + " of 55</strong> trophies. " +
+      open.length + " to go, " + countedOpen + " of them with progress counters. " +
+      "These are the next six in roadmap order — each with the next step of its plan:</p>";
+    if (!open.length) {
+      html += '<article class="planner-card"><h3>Nothing left — the platinum is yours.</h3></article>';
+    }
+    html += open.slice(0, 6).map(function (t) {
+      var masked = F.isMasked(t, store);
+      var plan = planOf(t);
+      var name = masked ? "Hidden story trophy" : esc(t.name);
+      var nextStep = "Open its guide for the full plan.";
+      var stepNote = "";
+      if (masked) {
+        nextStep = "Earn it in the story to reveal its name, guide and plan.";
+      } else if (plan) {
+        var done = store.stepsDone(t.id, plan.steps.length);
+        stepNote = done + " / " + plan.steps.length + " steps ticked";
+        var idx = 0;
+        while (idx < plan.steps.length && store.getSteps(t.id)[idx] === true) idx++;
+        nextStep = idx < plan.steps.length ? plan.steps[idx] : "Every step ticked — mark it earned.";
+      }
+      var counter = "";
+      if (t.target) {
+        var c = store.getCount(t.id);
+        counter = ' &middot; counter ' + F.formatTarget(c) + " / " + F.formatTarget(t.target);
+      }
+      return '<article class="planner-card">' + medalHtml(t) +
+        '<div class="planner-main"><h3>' + name + "</h3>" +
+        '<p class="planner-meta">Stage ' + t.stage + " &middot; " + F.GRADE_LABEL[t.grade] +
+        (plan ? " &middot; " + esc(plan.effort) : "") + counter +
+        (t.missable ? ' &middot; <span class="tag tag-missable">Missable</span>' : "") + "</p>" +
+        '<p class="planner-next"><strong>Next step:</strong> ' + esc(nextStep) + "</p>" +
+        (stepNote ? '<p class="planner-steps">' + stepNote + "</p>" : "") + "</div>" +
+        '<button type="button" class="tool-btn" data-goto="' + t.id + '">Open guide</button></article>';
+    }).join("");
+    el("plannerCards").innerHTML = html;
+    Array.prototype.forEach.call(el("plannerCards").querySelectorAll("[data-goto]"), function (btn) {
+      btn.addEventListener("click", function () {
+        setView("checklist");
+        select(parseInt(btn.getAttribute("data-goto"), 10));
+      });
+    });
+  }
+
   /* ---------- view switching ---------- */
 
   function setView(name) {
     currentView = name;
-    ["checklist", "roadmap", "missables"].forEach(function (v) {
+    ["checklist", "roadmap", "missables", "planner"].forEach(function (v) {
       el("view-" + v).classList.toggle("is-active", v === name);
     });
     Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (tab) {
@@ -299,6 +417,7 @@ Atlas.views = (function () {
     el("toolbar").style.display = name === "checklist" ? "" : "none";
     if (name === "roadmap") renderRoadmap();
     if (name === "missables") renderMissables();
+    if (name === "planner") renderPlanner();
     try {
       window.history.replaceState(null, "", "#/" + name + Atlas.main.querySuffix());
     } catch (err) {
@@ -313,6 +432,7 @@ Atlas.views = (function () {
     renderDetail();
     if (currentView === "roadmap") renderRoadmap();
     if (currentView === "missables") renderMissables();
+    if (currentView === "planner") renderPlanner();
   }
 
   return {

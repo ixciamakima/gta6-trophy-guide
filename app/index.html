@@ -39,6 +39,7 @@
   <button type="button" class="tab is-active" data-view="checklist">Checklist &amp; guides</button>
   <button type="button" class="tab" data-view="roadmap">Platinum roadmap</button>
   <button type="button" class="tab" data-view="missables">Missables <span class="tab-badge">1</span></button>
+  <button type="button" class="tab" data-view="planner">Next up planner</button>
   <span class="tabs-spacer"></span>
   <button type="button" id="exportBtn" class="tool-btn">Export progress</button>
   <button type="button" id="importBtn" class="tool-btn">Import</button>
@@ -102,15 +103,24 @@
     </div>
     <div id="missableCards" class="missable-cards"></div>
   </section>
+
+  <section id="view-planner" class="view">
+    <div class="roadmap-head">
+      <h2>Next up — your next six trophies, in roadmap order</h2>
+      <p>The planner reads your saved progress and the roadmap stages: the six unearned trophies that come first, each with its effort tier, its counter where PlayStation tracks one, and the next unticked step of its plan. Tick steps off in each trophy's guide; the planner moves on by itself.</p>
+    </div>
+    <div id="plannerCards" class="planner-cards"></div>
+  </section>
 </main>
 
 <footer class="footer">
-  <p><strong>About this atlas.</strong> Every guide here is written for this tracker, in our own words, from the official trophy descriptions; each one names its sources beside it, and claims we could not verify are labelled unconfirmed rather than dressed up as fact. Official names, descriptions and grades are as published on the PS5 list (via Exophase). Progress is stored only in your browser (localStorage) and can be exported or imported as JSON. This is a fan-made tool: it is not affiliated with Rockstar Games or Take-Two Interactive, and it uses no Rockstar artwork, logos or fonts &mdash; the look is our own CSS.</p>
+  <p><strong>About this atlas.</strong> Every guide here is written for this tracker, in our own words, from the official trophy descriptions; each one names its sources beside it, and claims we could not verify are labelled unconfirmed rather than dressed up as fact. Each guide also carries a step-by-step plan you can tick off as you go — the ticks are saved with your progress — and the Next up planner lines up the next six trophies in roadmap order from wherever you are. Official names, descriptions and grades are as published on the PS5 list (via Exophase). Progress is stored only in your browser (localStorage) and can be exported or imported as JSON. This is a fan-made tool: it is not affiliated with Rockstar Games or Take-Two Interactive, and it uses no Rockstar artwork, logos or fonts &mdash; the look is our own CSS.</p>
   <p class="footer-sources">Sources cited in the guides: <a href="https://www.powerpyx.com/gta-6-grand-theft-auto-vi-trophy-guide-roadmap/" rel="noopener">PowerPyx — GTA 6 Trophy Guide &amp; Roadmap</a> &middot; <a href="https://www.exophase.com/game/grand-theft-auto-vi-psn/trophies/" rel="noopener">Exophase — official PS5 trophy list</a> &middot; <a href="https://psnprofiles.com/trophies/43531-grand-theft-auto-vi" rel="noopener">PSNProfiles — GTA VI trophies &amp; PSN targets</a> &middot; <a href="https://gta-zone.com/news/gta-6-trophies-achievements/" rel="noopener">GTA-Zone — GTA 6 trophy list</a></p>
 </footer>
 
 <script src="js/store.js"></script>
 <script src="js/filters.js"></script>
+<script src="js/plans.js"></script>
 <script src="js/views.js"></script>
 <script src="js/main.js"></script>
 </body>

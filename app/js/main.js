@@ -15,7 +15,7 @@ Atlas.main = (function () {
     var path = qIndex === -1 ? hash : hash.slice(0, qIndex);
     var params = new URLSearchParams(qIndex === -1 ? "" : hash.slice(qIndex + 1));
     var view = path.replace("#/", "").replace("#", "") || "checklist";
-    if (["checklist", "roadmap", "missables"].indexOf(view) === -1) view = "checklist";
+    if (["checklist", "roadmap", "missables", "planner"].indexOf(view) === -1) view = "checklist";
     return { view: view, params: params };
   }
 
